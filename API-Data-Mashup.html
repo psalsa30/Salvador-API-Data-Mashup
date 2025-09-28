@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Book Information - Salvador</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { color: #000; }
+    input, button { padding: 8px; margin: 5px; }
+    table { border-collapse: collapse; margin-top: 20px; width: 100%; }
+    th, td { border: 1px solid #000000; padding: 8px; text-align: left; }
+    th { background: #f4f4f4; }
+    .error { color: red; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Book Info Finder (Open Library and Google Books)</h1>
+  <p>Enter the ISBN of the book you wish to find below ^^:</p>
+  <input type="text" id="isbnInput">
+  <button onclick="fetchData()">search!</button>
+  <div id="loading"></div>
+  <div id="error" class="error"></div>
+  <table id="resultsTable" style="display:none;">
+    <thead>
+      <tr>
+        <th>ISBN</th>
+        <th>Title (Open Library)</th>
+        <th>Authors (Open Library)</th>
+        <th>Title (Google Books)</th>
+        <th>Authors (Google Books)</th>
+        <th>Category (Google Books)</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    async function fetchData() {
+      const isbn = document.getElementById("isbnInput").value.trim();
+      const errorDiv = document.getElementById("error");
+      const loadingDiv = document.getElementById("loading");
+      const table = document.getElementById("resultsTable");
+      const tbody = table.querySelector("tbody");
+
+      errorDiv.textContent = "";
+      loadingDiv.textContent = "Loading...";
+      table.style.display = "none";
+      tbody.innerHTML = "";
+
+      if (!isbn) {
+        errorDiv.textContent = "Please enter an ISBN.";
+        loadingDiv.textContent = "";
+        return;
+      }
+
+      try {
+        const olRes = await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
+        if (!olRes.ok) throw new Error("Open Library: Book not found.");
+        const olData = await olRes.json();
+
+        const gbRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+        if (!gbRes.ok) throw new Error("Google Books: Data not found.");
+        const gbData = await gbRes.json();
+
+        if (!gbData.items || gbData.items.length === 0) {
+          throw new Error("Google Books: No results found.");
+        }
+        const gbBook = gbData.items[0].volumeInfo;
+
+        const olTitle = olData.title || "N/A";
+        const olAuthors = olData.authors ? olData.authors.join(", ") : "Unknown";
+
+        const gbTitle = gbBook.title || "N/A";
+        const gbAuthors = gbBook.authors ? gbBook.authors.join(", ") : "Unknown";
+        const gbCategory = gbBook.categories ? gbBook.categories.join(", ") : "Uncategorized";
+
+        tbody.innerHTML = `
+          <tr>
+            <td>${isbn}</td>
+            <td>${olTitle}</td>
+            <td>${olAuthors}</td>
+            <td>${gbTitle}</td>
+            <td>${gbAuthors}</td>
+            <td>${gbCategory}</td>
+          </tr>
+        `;
+
+        table.style.display = "table";
+        loadingDiv.textContent = "";
+
+      } catch (err) {
+        errorDiv.textContent = err.message;
+        loadingDiv.textContent = "";
+      }
+    }
+  </script>
+</body>
+</html>
